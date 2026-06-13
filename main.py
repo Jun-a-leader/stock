@@ -2,7 +2,6 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
 
 
 # -----------------------------
@@ -35,7 +34,6 @@ DISPLAY_ORDER = list(TICKERS.keys())
 # Theme
 # -----------------------------
 def apply_theme(mode: str) -> str:
-    """Apply a simple light/dark theme and return a Plotly template."""
     if mode == "다크 모드":
         bg = "#0f1117"
         fg = "#f5f7fa"
@@ -103,8 +101,8 @@ def apply_theme(mode: str) -> str:
 # Data loading
 # -----------------------------
 @st.cache_data(ttl=3600, show_spinner=False)
-def fetch_close_series(ticker: str) -> pd.Series | None:
-    """Fetch 1-year auto-adjusted close prices for one ticker."""
+def fetch_close_series(ticker: str):
+    """최근 1년 종가를 안전하게 가져와서 Series로 반환합니다."""
     try:
         df = yf.download(
             ticker,
@@ -119,19 +117,30 @@ def fetch_close_series(ticker: str) -> pd.Series | None:
     if df is None or df.empty or "Close" not in df.columns:
         return None
 
-    close = df["Close"].dropna().copy()
+    close = df["Close"]
+
+    # yfinance/pandas 조합에 따라 Close가 DataFrame으로 올 때가 있어서 안전하게 Series로 바꿉니다.
+    if isinstance(close, pd.DataFrame):
+        if close.shape[1] == 0:
+            return None
+        close = close.iloc[:, 0]
+
+    close = pd.Series(close).dropna().copy()
     close.index = pd.to_datetime(close.index)
     return close
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_price_frame() -> pd.DataFrame:
-    """Build a dataframe of close prices for all tickers."""
+    """모든 종목의 종가를 하나의 DataFrame으로 합칩니다."""
     series_list = []
+
     for name, ticker in TICKERS.items():
         s = fetch_close_series(ticker)
         if s is not None and not s.empty:
-            series_list.append(s.rename(name))
+            s = s.copy()
+            s.name = name
+            series_list.append(s)
 
     if not series_list:
         return pd.DataFrame()
@@ -142,8 +151,8 @@ def load_price_frame() -> pd.DataFrame:
 # -----------------------------
 # Calculations
 # -----------------------------
-def calc_period_return(series: pd.Series) -> tuple[float, float, pd.Timestamp, pd.Timestamp]:
-    """Return cumulative return over the available 1-year period."""
+def calc_period_return(series: pd.Series):
+    """최근 1년 누적 수익률을 계산합니다."""
     s = series.dropna()
     if len(s) < 2:
         if len(s) == 1:
@@ -156,8 +165,8 @@ def calc_period_return(series: pd.Series) -> tuple[float, float, pd.Timestamp, p
     return pct, last, s.index[0], s.index[-1]
 
 
-def calc_day_change(series: pd.Series) -> tuple[float, float, float, pd.Timestamp, pd.Timestamp]:
-    """Return latest day change based on last two available closes."""
+def calc_day_change(series: pd.Series):
+    """최근 거래일 기준 전일 대비 변동률을 계산합니다."""
     s = series.dropna()
     if len(s) < 2:
         if len(s) == 1:
@@ -198,12 +207,14 @@ if price_df.empty:
 
 
 # -----------------------------
-# Latest day summary
+# Summary
 # -----------------------------
 summary_rows = []
+
 for col in price_df.columns:
     day_pct, prev_close, last_close, prev_dt, last_dt = calc_day_change(price_df[col])
     year_pct, year_last, year_start_dt, year_end_dt = calc_period_return(price_df[col])
+
     summary_rows.append(
         {
             "종목": col,
@@ -218,8 +229,7 @@ for col in price_df.columns:
         }
     )
 
-summary_df = pd.DataFrame(summary_rows)
-summary_df = summary_df.sort_values("최근1년수익률", ascending=False).reset_index(drop=True)
+summary_df = pd.DataFrame(summary_rows).sort_values("최근1년수익률", ascending=False).reset_index(drop=True)
 
 
 # -----------------------------
@@ -227,10 +237,9 @@ summary_df = summary_df.sort_values("최근1년수익률", ascending=False).rese
 # -----------------------------
 selected_name = st.selectbox("종목을 선택해 주세요.", DISPLAY_ORDER, index=0)
 selected_row = summary_df.loc[summary_df["종목"] == selected_name].iloc[0]
+
 selected_day_pct = float(selected_row["오늘변동률"])
 selected_year_pct = float(selected_row["최근1년수익률"])
-selected_last = float(selected_row["최근종가"])
-selected_prev = float(selected_row["전일종가"])
 
 main_word = "상승" if selected_day_pct >= 0 else "하락"
 main_arrow = "📈" if selected_day_pct >= 0 else "📉"
@@ -263,9 +272,13 @@ with right:
 
 
 st.markdown("### 종목별 한눈에 보기")
-st.markdown("<div class='section-note'>오늘 변동률과 최근 1년 누적 수익률을 같이 확인할 수 있어요.</div>", unsafe_allow_html=True)
+st.markdown(
+    "<div class='section-note'>오늘 변동률과 최근 1년 누적 수익률을 같이 확인할 수 있어요.</div>",
+    unsafe_allow_html=True,
+)
 
 metric_cols = st.columns(6)
+
 for i, row in summary_df.iterrows():
     name = row["종목"]
     day_pct = float(row["오늘변동률"])
@@ -283,6 +296,7 @@ for i, row in summary_df.iterrows():
 # Ranking table
 # -----------------------------
 st.markdown("### 최근 1년 수익률 순위")
+
 rank_df = summary_df.copy()
 rank_df["오늘변동률"] = rank_df["오늘변동률"].map(lambda x: round(float(x), 2))
 rank_df["최근1년수익률"] = rank_df["최근1년수익률"].map(lambda x: round(float(x), 2))
@@ -314,6 +328,7 @@ st.dataframe(
 # Selected stock chart
 # -----------------------------
 st.markdown("### 선택한 종목의 최근 1년 그래프")
+
 selected_series = price_df[selected_name].dropna().copy()
 selected_chart = selected_series.reset_index()
 selected_chart.columns = ["날짜", "종가"]
@@ -339,7 +354,10 @@ st.plotly_chart(fig, use_container_width=True)
 # Normalized comparison chart
 # -----------------------------
 st.markdown("### 전체 종목 비교 그래프")
-st.markdown("<div class='section-note'>첫 거래일을 100으로 맞춰서 상대적인 움직임을 비교할 수 있어요.</div>", unsafe_allow_html=True)
+st.markdown(
+    "<div class='section-note'>첫 거래일을 100으로 맞춰서 상대적인 움직임을 비교할 수 있어요.</div>",
+    unsafe_allow_html=True,
+)
 
 norm_df = price_df.copy()
 for col in norm_df.columns:
@@ -347,11 +365,14 @@ for col in norm_df.columns:
     if len(s) > 0:
         norm_df[col] = norm_df[col] / s.iloc[0] * 100
 
-chart_df = (
-    norm_df.reset_index()
-    .melt(id_vars="Date", var_name="종목", value_name="기준=100")
-    .dropna()
-)
+norm_reset = norm_df.reset_index()
+date_col = norm_reset.columns[0]
+
+chart_df = norm_reset.rename(columns={date_col: "Date"}).melt(
+    id_vars="Date",
+    var_name="종목",
+    value_name="기준=100",
+).dropna()
 
 fig2 = px.line(
     chart_df,

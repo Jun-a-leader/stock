@@ -26,75 +26,184 @@ TICKERS = {
     "애플": "AAPL",
     "테슬라": "TSLA",
 }
-
 DISPLAY_ORDER = list(TICKERS.keys())
 
 
 # -----------------------------
-# Theme
+# Theme system
 # -----------------------------
-def apply_theme(mode: str) -> str:
-    if mode == "다크 모드":
-        bg = "#0f1117"
-        fg = "#f5f7fa"
-        card = "#171b26"
-        border = "#2b3240"
-        muted = "#9aa4b2"
-        template = "plotly_dark"
-    else:
-        bg = "#ffffff"
-        fg = "#111827"
-        card = "#f8fafc"
-        border = "#e5e7eb"
-        muted = "#6b7280"
-        template = "plotly_white"
+THEMES = {
+    "화이트 모드": {
+        "bg": "#ffffff",
+        "fg": "#111827",
+        "card": "#f8fafc",
+        "card2": "#eef2f7",
+        "border": "#e5e7eb",
+        "muted": "#6b7280",
+        "accent": "#2563eb",
+        "accent_soft": "rgba(37, 99, 235, 0.12)",
+        "template": "plotly_white",
+        "plot": ["#2563eb", "#7c3aed", "#059669", "#f59e0b", "#ef4444", "#0ea5e9"],
+    },
+    "다크 모드": {
+        "bg": "#0f1117",
+        "fg": "#f5f7fa",
+        "card": "#171b26",
+        "card2": "#1d2330",
+        "border": "#2b3240",
+        "muted": "#9aa4b2",
+        "accent": "#60a5fa",
+        "accent_soft": "rgba(96, 165, 250, 0.14)",
+        "template": "plotly_dark",
+        "plot": ["#60a5fa", "#c084fc", "#34d399", "#fbbf24", "#f87171", "#22d3ee"],
+    },
+}
+
+
+def apply_theme(mode: str) -> dict:
+    """Inject theme-specific CSS and return theme tokens."""
+    t = THEMES[mode]
 
     st.markdown(
         f"""
         <style>
             .stApp {{
-                background: {bg};
-                color: {fg};
+                background: {t['bg']};
+                color: {t['fg']};
             }}
-            .block-container {{
-                padding-top: 1.2rem;
+
+            .main .block-container {{
+                padding-top: 0.6rem;
                 padding-bottom: 2rem;
+                max-width: 1300px;
             }}
+
+            .sticky-hero {{
+                position: sticky;
+                top: 0;
+                z-index: 999;
+                background: linear-gradient(180deg, {t['bg']} 84%, {t['bg']}f0 100%);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                padding: 0.65rem 0 0.8rem 0;
+                border-bottom: 1px solid {t['border']};
+                margin-bottom: 0.4rem;
+            }}
+
+            .hero-title {{
+                font-size: clamp(1.55rem, 3.4vw, 2.4rem);
+                font-weight: 900;
+                letter-spacing: -0.03em;
+                line-height: 1.08;
+                margin: 0;
+                color: {t['fg']};
+            }}
+
+            .hero-sub {{
+                margin-top: 0.35rem;
+                color: {t['muted']};
+                font-size: 0.95rem;
+            }}
+
+            .theme-badge {{
+                display: inline-block;
+                margin-top: 0.45rem;
+                padding: 0.28rem 0.7rem;
+                border-radius: 999px;
+                background: {t['accent_soft']};
+                color: {t['fg']};
+                font-size: 0.82rem;
+                font-weight: 700;
+            }}
+
             .summary-card {{
-                background: {card};
-                border: 1px solid {border};
-                border-radius: 18px;
+                background: {t['card']};
+                border: 1px solid {t['border']};
+                border-radius: 20px;
                 padding: 1rem 1.1rem;
-                box-shadow: 0 4px 18px rgba(0,0,0,0.04);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.05);
                 margin-bottom: 0.7rem;
             }}
+
             .summary-title {{
                 font-size: 0.88rem;
-                color: {muted};
+                color: {t['muted']};
                 margin-bottom: 0.25rem;
+                font-weight: 700;
             }}
+
             .summary-value {{
-                font-size: 1.45rem;
-                font-weight: 800;
-                line-height: 1.2;
+                font-size: 1.35rem;
+                font-weight: 900;
+                line-height: 1.28;
                 margin: 0;
+                color: {t['fg']};
             }}
+
             .summary-sub {{
-                color: {muted};
-                font-size: 0.82rem;
-                margin-top: 0.25rem;
+                color: {t['muted']};
+                font-size: 0.83rem;
+                margin-top: 0.3rem;
             }}
+
             .section-note {{
-                color: {muted};
+                color: {t['muted']};
                 font-size: 0.9rem;
                 margin-top: -0.4rem;
                 margin-bottom: 0.8rem;
+            }}
+
+            [data-testid="stMetric"] {{
+                background: {t['card']};
+                border: 1px solid {t['border']};
+                border-radius: 18px;
+                padding: 0.65rem 0.8rem;
+                box-shadow: 0 4px 18px rgba(0,0,0,0.03);
+            }}
+
+            [data-testid="stMetricLabel"] {{
+                color: {t['muted']};
+            }}
+
+            [data-testid="stDataFrame"] {{
+                border-radius: 18px;
+                overflow: hidden;
+                border: 1px solid {t['border']};
+            }}
+
+            [data-testid="stSelectbox"] div[data-baseweb="select"] > div {{
+                background-color: {t['card']};
+                border-color: {t['border']};
+                color: {t['fg']};
+                border-radius: 14px;
+            }}
+
+            [data-testid="stSelectbox"] div[data-baseweb="select"] input {{
+                color: {t['fg']};
+            }}
+
+            [data-testid="stRadio"] label {{
+                color: {t['fg']};
+            }}
+
+            [data-testid="stRadio"] [role="radiogroup"] {{
+                gap: 0.35rem;
+            }}
+
+            div[data-baseweb="popover"] {{
+                background: {t['card']};
+                color: {t['fg']};
+            }}
+
+            div[data-testid="stSidebar"] {{
+                background: {t['bg']};
             }}
         </style>
         """,
         unsafe_allow_html=True,
     )
-    return template
+
+    return t
 
 
 # -----------------------------
@@ -119,7 +228,7 @@ def fetch_close_series(ticker: str):
 
     close = df["Close"]
 
-    # yfinance/pandas 조합에 따라 Close가 DataFrame으로 올 때가 있어서 안전하게 Series로 바꿉니다.
+    # yfinance / pandas 조합에 따라 Close가 DataFrame으로 오는 경우가 있어서 안전하게 처리합니다.
     if isinstance(close, pd.DataFrame):
         if close.shape[1] == 0:
             return None
@@ -165,6 +274,7 @@ def calc_period_return(series: pd.Series):
     return pct, last, s.index[0], s.index[-1]
 
 
+
 def calc_day_change(series: pd.Series):
     """최근 거래일 기준 전일 대비 변동률을 계산합니다."""
     s = series.dropna()
@@ -180,6 +290,7 @@ def calc_day_change(series: pd.Series):
     return pct, prev, last, s.index[-2], s.index[-1]
 
 
+
 def format_signed_pct(pct: float) -> str:
     return f"{pct:+.2f}%"
 
@@ -187,16 +298,26 @@ def format_signed_pct(pct: float) -> str:
 # -----------------------------
 # UI
 # -----------------------------
-st.title("📈 최근 1년 주가 변동 분석")
-
 mode = st.radio(
     "화면 모드를 선택해 주세요.",
     ["화이트 모드", "다크 모드"],
     horizontal=True,
     index=0,
+    label_visibility="collapsed",
 )
 
-plotly_template = apply_theme(mode)
+T = apply_theme(mode)
+
+st.markdown(
+    f"""
+    <div class="sticky-hero">
+        <div class="hero-title">📈 최근 1년 주가 변동 분석</div>
+        <div class="hero-sub">삼성전자 · 하이닉스 · 구글 · MS · 애플 · 테슬라의 최근 1년 흐름을 한 번에 비교해요.</div>
+        <div class="theme-badge">현재 모드: {mode}</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.spinner("주가 데이터를 불러오는 중이에요..."):
     price_df = load_price_frame()
@@ -207,14 +328,12 @@ if price_df.empty:
 
 
 # -----------------------------
-# Summary
+# Summary data
 # -----------------------------
 summary_rows = []
-
 for col in price_df.columns:
     day_pct, prev_close, last_close, prev_dt, last_dt = calc_day_change(price_df[col])
     year_pct, year_last, year_start_dt, year_end_dt = calc_period_return(price_df[col])
-
     summary_rows.append(
         {
             "종목": col,
@@ -237,12 +356,14 @@ summary_df = pd.DataFrame(summary_rows).sort_values("최근1년수익률", ascen
 # -----------------------------
 selected_name = st.selectbox("종목을 선택해 주세요.", DISPLAY_ORDER, index=0)
 selected_row = summary_df.loc[summary_df["종목"] == selected_name].iloc[0]
-
 selected_day_pct = float(selected_row["오늘변동률"])
 selected_year_pct = float(selected_row["최근1년수익률"])
+selected_last = float(selected_row["최근종가"])
+selected_prev = float(selected_row["전일종가"])
 
 main_word = "상승" if selected_day_pct >= 0 else "하락"
 main_arrow = "📈" if selected_day_pct >= 0 else "📉"
+trend_color = T["accent"] if selected_day_pct >= 0 else ("#ef4444" if mode == "화이트 모드" else "#f87171")
 
 left, right = st.columns([1.35, 1])
 
@@ -251,7 +372,9 @@ with left:
         f"""
         <div class="summary-card">
             <div class="summary-title">오늘 기준 변동</div>
-            <div class="summary-value">{main_arrow} 오늘 '{selected_name}' 주식은 {format_signed_pct(selected_day_pct)} {main_word}했어요!</div>
+            <div class="summary-value" style="color:{trend_color};">
+                {main_arrow} 오늘 '{selected_name}' 주식은 {format_signed_pct(selected_day_pct)} {main_word}했어요!
+            </div>
             <div class="summary-sub">최근 거래일 종가와 그 전 거래일 종가를 기준으로 계산했어요.</div>
         </div>
         """,
@@ -271,6 +394,9 @@ with right:
     )
 
 
+# -----------------------------
+# Metrics
+# -----------------------------
 st.markdown("### 종목별 한눈에 보기")
 st.markdown(
     "<div class='section-note'>오늘 변동률과 최근 1년 누적 수익률을 같이 확인할 수 있어요.</div>",
@@ -278,7 +404,6 @@ st.markdown(
 )
 
 metric_cols = st.columns(6)
-
 for i, row in summary_df.iterrows():
     name = row["종목"]
     day_pct = float(row["오늘변동률"])
@@ -296,7 +421,6 @@ for i, row in summary_df.iterrows():
 # Ranking table
 # -----------------------------
 st.markdown("### 최근 1년 수익률 순위")
-
 rank_df = summary_df.copy()
 rank_df["오늘변동률"] = rank_df["오늘변동률"].map(lambda x: round(float(x), 2))
 rank_df["최근1년수익률"] = rank_df["최근1년수익률"].map(lambda x: round(float(x), 2))
@@ -328,7 +452,6 @@ st.dataframe(
 # Selected stock chart
 # -----------------------------
 st.markdown("### 선택한 종목의 최근 1년 그래프")
-
 selected_series = price_df[selected_name].dropna().copy()
 selected_chart = selected_series.reset_index()
 selected_chart.columns = ["날짜", "종가"]
@@ -338,14 +461,22 @@ fig = px.line(
     x="날짜",
     y="종가",
     title=f"{selected_name} 최근 1년 주가 흐름",
-    template=plotly_template,
+    template=T["template"],
     labels={"날짜": "날짜", "종가": "주가"},
+    color_discrete_sequence=T["plot"],
 )
-fig.update_traces(mode="lines")
+fig.update_traces(mode="lines", line=dict(width=3))
 fig.update_layout(
     hovermode="x unified",
     margin=dict(l=20, r=20, t=60, b=20),
     height=540,
+    paper_bgcolor=T["bg"],
+    plot_bgcolor=T["bg"],
+    font=dict(color=T["fg"]),
+    title=dict(font=dict(color=T["fg"])),
+    legend=dict(bgcolor="rgba(0,0,0,0)"),
+    xaxis=dict(gridcolor=T["border"], zerolinecolor=T["border"], linecolor=T["border"]),
+    yaxis=dict(gridcolor=T["border"], zerolinecolor=T["border"], linecolor=T["border"]),
 )
 st.plotly_chart(fig, use_container_width=True)
 
@@ -367,7 +498,6 @@ for col in norm_df.columns:
 
 norm_reset = norm_df.reset_index()
 date_col = norm_reset.columns[0]
-
 chart_df = norm_reset.rename(columns={date_col: "Date"}).melt(
     id_vars="Date",
     var_name="종목",
@@ -380,14 +510,22 @@ fig2 = px.line(
     y="기준=100",
     color="종목",
     title="최근 1년 정규화 주가 추이 (첫 거래일 = 100)",
-    template=plotly_template,
+    template=T["template"],
     labels={"Date": "날짜", "기준=100": "정규화 가격"},
+    color_discrete_sequence=T["plot"],
 )
 fig2.update_layout(
     hovermode="x unified",
     margin=dict(l=20, r=20, t=60, b=20),
     height=620,
     legend_title_text="종목",
+    paper_bgcolor=T["bg"],
+    plot_bgcolor=T["bg"],
+    font=dict(color=T["fg"]),
+    title=dict(font=dict(color=T["fg"])),
+    legend=dict(bgcolor="rgba(0,0,0,0)"),
+    xaxis=dict(gridcolor=T["border"], zerolinecolor=T["border"], linecolor=T["border"]),
+    yaxis=dict(gridcolor=T["border"], zerolinecolor=T["border"], linecolor=T["border"]),
 )
 st.plotly_chart(fig2, use_container_width=True)
 
